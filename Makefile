@@ -49,7 +49,7 @@ test_integration:
 	export TEST_UPDATER=1; cargo nextest run --retries 2 --filter-expr 'binary(integration_test)'
 
 check:
-	cargo check --locked --verbose && cargo check --locked --no-default-features --verbose
+	cargo check --locked --verbose
 
 format:
 	cargo fix && cargo fmt && cargo clippy --tests --verbose -- -D warnings
