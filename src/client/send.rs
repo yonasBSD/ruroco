@@ -131,7 +131,6 @@ mod tests {
     use crate::client::config::{CliClient, SendCommand};
     use crate::client::gen::Generator;
     use crate::client::send::Sender;
-    use crate::common::get_random_string;
     use std::fs;
     use std::fs::File;
     use std::net::IpAddr;
@@ -173,8 +172,8 @@ mod tests {
     #[test]
     fn test_send_invalid_key() {
         let _conf_dir = set_test_conf_dir();
-        let key_file_name = gen_file_name(".key");
-        File::create(&key_file_name).unwrap();
+        let key_file_name = "test.key";
+        File::create(key_file_name).unwrap();
 
         let result = Sender::create(SendCommand {
             key: "DEADBEEF".to_string(),
@@ -182,7 +181,7 @@ mod tests {
             ..Default::default()
         });
 
-        let _ = fs::remove_file(&key_file_name);
+        let _ = fs::remove_file(key_file_name);
 
         assert_eq!(result.unwrap_err().to_string(), "Key too short");
     }
@@ -266,11 +265,6 @@ mod tests {
             ..Default::default()
         });
         sender?.send()
-    }
-
-    fn gen_file_name(suffix: &str) -> String {
-        let rand_str = get_random_string(16).unwrap();
-        format!("{rand_str}{suffix}")
     }
 
     fn get_ip_addresses(host: &str) -> Vec<IpAddr> {

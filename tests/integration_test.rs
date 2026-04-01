@@ -4,7 +4,7 @@ mod tests {
     use ruroco::client::counter::Counter;
     use ruroco::client::gen::Generator;
     use ruroco::client::send::Sender;
-    use ruroco::common::{get_random_range, get_random_string};
+    use ruroco::common::get_random_range;
     use ruroco::server::blocklist::Blocklist;
     use ruroco::server::commander::Commander;
     use ruroco::server::config::ConfigServer;
@@ -40,10 +40,10 @@ mod tests {
 
             TestData {
                 config_dir: test_folder_path.to_path_buf(),
-                test_file_path: test_folder_path.join(TestData::gen_file_name(".test")),
+                test_file_path: test_folder_path.join("test.test"),
                 socket_path: get_commander_unix_socket_path(test_folder_path),
                 blocklist_path: Blocklist::get_blocklist_path(test_folder_path),
-                key_path: test_folder_path.join(TestData::gen_file_name(".key")),
+                key_path: test_folder_path.join("test.key"),
                 server_address: Self::get_server_address("[::]"),
                 test_file_exists: false,
                 block_list_exists: true,
@@ -56,11 +56,6 @@ mod tests {
         fn get_server_address(host: &str) -> String {
             let server_port = get_random_range(1024, 65535).unwrap();
             format!("{host}:{server_port}")
-        }
-
-        fn gen_file_name(suffix: &str) -> String {
-            let rand_str = get_random_string(16).unwrap();
-            format!("{rand_str}{suffix}")
         }
 
         fn run_client_gen(&self) {
