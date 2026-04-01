@@ -349,6 +349,12 @@ mod tests {
     }
 
     #[test]
+    fn test_deserialize_ipv6_mapped_ip_is_normalized_to_ipv4() {
+        let config = ConfigServer::deserialize("ips = [\"::ffff:127.0.0.1\"]\n[commands]").unwrap();
+        assert_eq!(config.ips, vec!["127.0.0.1".parse::<std::net::IpAddr>().unwrap()]);
+    }
+
+    #[test]
     fn test_deserialize_with_commands() {
         let toml = r#"
             ips = ["127.0.0.1", "::1"]
