@@ -9,15 +9,17 @@ pub(crate) struct CommanderData {
     pub(crate) ip: IpAddr,
 }
 
-impl CommanderData {
-    pub(crate) fn serialize(&self) -> [u8; CMDR_DATA_SIZE] {
+impl From<CommanderData> for [u8; CMDR_DATA_SIZE] {
+    fn from(value: CommanderData) -> Self {
         let mut data = [0u8; CMDR_DATA_SIZE];
-        data[..8].copy_from_slice(&self.cmd_hash.to_be_bytes());
-        data[8..].copy_from_slice(&serialize_ip(&self.ip));
+        data[..8].copy_from_slice(&value.cmd_hash.to_be_bytes());
+        data[8..].copy_from_slice(&serialize_ip(&value.ip));
         data
     }
+}
 
-    pub(crate) fn deserialize(data: [u8; CMDR_DATA_SIZE]) -> Self {
+impl From<[u8; CMDR_DATA_SIZE]> for CommanderData {
+    fn from(data: [u8; CMDR_DATA_SIZE]) -> Self {
         let mut cmd_hash_bytes = [0u8; 8];
         cmd_hash_bytes.copy_from_slice(&data[0..8]);
         let mut ip_bytes = [0u8; 16];

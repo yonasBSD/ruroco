@@ -89,7 +89,7 @@ impl Commander {
 
     fn run_cycle(&self, stream: &mut UnixStream) -> anyhow::Result<()> {
         let msg = Commander::read(stream)?;
-        let cmdr_data: CommanderData = CommanderData::deserialize(msg);
+        let cmdr_data: CommanderData = msg.into();
         let cmd_hash = &cmdr_data.cmd_hash;
         let cmd =
             self.cmds.get(cmd_hash).ok_or_else(|| anyhow!("Unknown command name: {cmd_hash}"))?;
@@ -139,9 +139,8 @@ pub fn run_commander(server: CliServer) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_random_string;
     use crate::server::commander::Commander;
-    use crate::server::commander_data::CommanderData;
+    use crate::server::commander_data::{CommanderData, CMDR_DATA_SIZE};
     use crate::server::config::ConfigServer;
     use std::collections::HashMap;
     use std::io::Write;
@@ -149,11 +148,6 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::Duration;
     use std::{env, fs, thread};
-
-    fn gen_file_name(suffix: &str) -> String {
-        let rand_str = get_random_string(16).unwrap();
-        format!("{rand_str}{suffix}")
-    }
 
     fn create_commander(commands: HashMap<String, String>, config_dir: PathBuf) -> Commander {
         Commander::create(ConfigServer {
@@ -174,9 +168,10 @@ mod tests {
         panic!("socket was not created at {socket_path:?}");
     }
 
-    fn send_to_socket(socket_path: &Path, data: &CommanderData) {
+    fn send_to_socket(socket_path: &Path, data: CommanderData) {
         let mut stream = UnixStream::connect(socket_path).unwrap();
-        stream.write_all(&data.serialize()).unwrap();
+        let bytes: [u8; CMDR_DATA_SIZE] = data.into();
+        stream.write_all(&bytes).unwrap();
         stream.flush().unwrap();
     }
 
@@ -238,7 +233,7 @@ mod tests {
         let _ = fs::remove_file(socket_file_path);
 
         let mut commands = HashMap::new();
-        commands.insert("default".to_string(), format!("touch {}", gen_file_name(".test")));
+        commands.insert("default".to_string(), "touch /tmp/ruroco_test.test".to_string());
         thread::spawn(move || {
             create_commander(commands, PathBuf::from("/tmp/ruroco"))
                 .run()
@@ -330,7 +325,7 @@ mod tests {
         wait_for_socket(&socket_path);
         send_to_socket(
             &socket_path,
-            &CommanderData {
+            CommanderData {
                 cmd_hash,
                 ip: "127.0.0.1".parse().unwrap(),
             },
@@ -352,7 +347,7 @@ mod tests {
         wait_for_socket(&socket_path);
         send_to_socket(
             &socket_path,
-            &CommanderData {
+            CommanderData {
                 cmd_hash: 99999,
                 ip: "127.0.0.1".parse().unwrap(),
             },
@@ -373,7 +368,7 @@ mod tests {
         let writer = thread::spawn(move || {
             send_to_socket(
                 &socket_path_clone,
-                &CommanderData {
+                CommanderData {
                     cmd_hash: 42,
                     ip: "10.0.0.1".parse().unwrap(),
                 },
@@ -381,7 +376,7 @@ mod tests {
         });
 
         let (mut stream, _) = listener.accept().unwrap();
-        let parsed = CommanderData::deserialize(Commander::read(&mut stream).unwrap());
+        let parsed: CommanderData = Commander::read(&mut stream).unwrap().into();
         assert_eq!(parsed.cmd_hash, 42);
         writer.join().unwrap();
     }
