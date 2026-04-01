@@ -20,13 +20,6 @@ pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
     Ok(u64::from_be_bytes(out))
 }
 
-pub fn get_random_string(len: usize) -> anyhow::Result<String> {
-    let mut buf = vec![0u8; len];
-    rand_bytes(&mut buf).with_context(|| "Could not generate random")?;
-    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    Ok(buf.iter().map(|b| chars.as_bytes()[(*b as usize) % chars.len()] as char).collect())
-}
-
 pub fn get_random_range(from: u16, to: u16) -> anyhow::Result<u16> {
     let mut buf = [0u8; 2];
     rand_bytes(&mut buf).with_context(|| "Could not generate number")?;

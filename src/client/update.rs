@@ -1,11 +1,12 @@
 use crate::client::util::set_permissions;
-use crate::common::{change_file_ownership, get_random_string, info};
+use crate::common::{change_file_ownership, info};
 use anyhow::{anyhow, bail, Context};
 use reqwest::blocking::{get, Client};
 use serde::{Deserialize, Serialize};
 use std::env::consts::{ARCH, OS};
 use std::path::{Path, PathBuf};
 use std::{env, fs};
+use tempfile::NamedTempFile;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct GithubApiAsset {
@@ -157,16 +158,7 @@ impl Updater {
     }
 
     fn check_if_writeable(path: &Path) -> anyhow::Result<bool> {
-        let tmp_path = path.join(get_random_string(16)?);
-        match fs::write(&tmp_path, b"test") {
-            Ok(_) => {
-                fs::remove_file(&tmp_path).with_context(|| {
-                    format!("Could not remove temporary test file {tmp_path:?}")
-                })?;
-                Ok(true)
-            }
-            Err(_) => Ok(false),
-        }
+        Ok(NamedTempFile::new_in(path).is_ok())
     }
 
     fn validate_dir_path(dir_path: PathBuf) -> anyhow::Result<PathBuf> {
@@ -249,7 +241,6 @@ impl Updater {
 #[cfg(test)]
 mod tests {
     use crate::client::update::{GithubApiAsset, Updater};
-    use crate::common::get_random_string;
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::os::unix::fs::PermissionsExt;
@@ -293,11 +284,11 @@ mod tests {
     #[test_with::env(TEST_UPDATER)]
     #[test]
     fn test_update() {
-        let rand_str = get_random_string(16).unwrap();
-        let temp_path = env::temp_dir().join(format!("temp_{rand_str}"));
-        fs::create_dir_all(&temp_path).unwrap();
+        let temp_path = tempfile::tempdir().unwrap();
+        let temp_path = temp_path.path();
 
-        let result = Updater::create(true, None, Some(temp_path.clone()), false).unwrap().update();
+        let result =
+            Updater::create(true, None, Some(temp_path.to_path_buf()), false).unwrap().update();
 
         let entries: Vec<String> = fs::read_dir(temp_path)
             .unwrap()
