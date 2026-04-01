@@ -44,7 +44,18 @@ where
     D: serde::Deserializer<'de>,
 {
     let v: Vec<String> = Vec::<String>::deserialize(d)?;
-    v.into_iter().map(|s| s.parse().map_err(serde::de::Error::custom)).collect()
+    v.into_iter()
+        .map(|s| {
+            let ip: IpAddr = s.parse().map_err(serde::de::Error::custom)?;
+            // Normalize IPv6-mapped IPv4 addresses (e.g. "::ffff:127.0.0.1") to their
+            // plain IPv4 form so that comparisons against protocol-deserialized IPs
+            // (which also go through to_ipv4_mapped()) always agree.
+            Ok(match ip {
+                IpAddr::V6(v6) => v6.to_ipv4_mapped().map_or(IpAddr::V6(v6), IpAddr::V4),
+                other => other,
+            })
+        })
+        .collect()
 }
 
 impl ConfigServer {
