@@ -18,7 +18,7 @@ use crate::server::blocklist::Blocklist;
 use crate::server::config::{CliServer, ConfigServer};
 use crate::server::signal::{install_signal_handlers, shutdown_requested};
 use anyhow::{anyhow, bail, Context};
-use commander_data::CommanderData;
+use commander_data::{CommanderData, CMDR_DATA_SIZE};
 use std::collections::HashMap;
 use std::fs;
 use std::io::{ErrorKind, Write};
@@ -168,7 +168,7 @@ impl Server {
         let mut stream = UnixStream::connect(&self.socket_path)
             .with_context(|| format!("Could not connect to socket {:?}", self.socket_path))?;
 
-        let data_to_send = data.serialize();
+        let data_to_send: [u8; CMDR_DATA_SIZE] = data.into();
         stream.write_all(&data_to_send).with_context(|| {
             format!("Could not write {data_to_send:?} to socket {:?}", self.socket_path)
         })?;
@@ -187,8 +187,8 @@ pub fn run_server(server: CliServer) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use crate::client::gen::Generator;
+    use crate::common::get_random_range;
     use crate::common::protocol::MSG_SIZE;
-    use crate::common::{get_random_range, get_random_string};
     use crate::server::config::{CliServer, ConfigServer};
     use crate::server::Server;
     use clap::error::ErrorKind::DisplayHelp;
@@ -218,7 +218,7 @@ mod tests {
         env::remove_var("RUROCO_LISTEN_ADDRESS");
         let socket = ConfigServer::default().create_server_udp_socket(None).unwrap();
         let result = socket.local_addr().unwrap();
-        assert_eq!(format!("{result:?}"), "[::]:34020");
+        assert_eq!(result.port(), crate::server::config::DEFAULT_PORT);
     }
 
     #[test]
@@ -335,7 +335,7 @@ mod tests {
         let temp_dir = tempfile::tempdir()?;
         let test_folder_path = temp_dir.keep();
 
-        let key_path = test_folder_path.join(gen_file_name(".key"));
+        let key_path = test_folder_path.join("test.key");
         fs::write(&key_path, Generator::create()?.gen()?)?;
 
         Server::create(
@@ -349,7 +349,7 @@ mod tests {
 
     fn create_server_with_key_in_dir(config_dir: PathBuf) -> anyhow::Result<(Server, String)> {
         let key = Generator::create()?.gen()?;
-        let key_path = config_dir.join(gen_file_name(".key"));
+        let key_path = config_dir.join("test.key");
         fs::write(&key_path, &key)?;
 
         let server = Server::create(
@@ -366,11 +366,6 @@ mod tests {
     fn create_server_with_key() -> anyhow::Result<(Server, String)> {
         let temp_dir = tempfile::tempdir()?;
         create_server_with_key_in_dir(temp_dir.keep())
-    }
-
-    fn gen_file_name(suffix: &str) -> String {
-        let rand_str = get_random_string(16).unwrap();
-        format!("{rand_str}{suffix}")
     }
 
     fn localhost_src(port: u16) -> io::Result<(usize, SocketAddr)> {
