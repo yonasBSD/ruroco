@@ -29,7 +29,12 @@ impl Counter {
     }
 
     pub(crate) fn inc(&mut self) -> anyhow::Result<()> {
-        self.count = self.count.saturating_add(1);
+        self.count = self.count.checked_add(1).ok_or_else(|| {
+            anyhow::anyhow!(
+                "counter overflow: value has reached u128::MAX ({}) and cannot be incremented",
+                u128::MAX
+            )
+        })?;
         self.write()?;
         Ok(())
     }
@@ -50,5 +55,51 @@ impl Counter {
 
         self.count = u128::from_be_bytes(buf);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_counter(initial: u128) -> Counter {
+        let dir = tempfile::tempdir().unwrap();
+        Counter::create_and_init(dir.keep().join("counter"), initial).unwrap()
+    }
+
+    #[test]
+    fn test_inc_normal() {
+        let mut c = make_counter(0);
+        c.inc().unwrap();
+        assert_eq!(c.count(), 1);
+    }
+
+    #[test]
+    fn test_inc_overflow_returns_error() {
+        let mut c = make_counter(u128::MAX);
+        assert!(c.inc().is_err());
+        let err = c.inc().unwrap_err().to_string();
+        assert!(err.contains("counter overflow"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn test_dec_normal() {
+        let mut c = make_counter(5);
+        c.dec().unwrap();
+        assert_eq!(c.count(), 4);
+    }
+
+    #[test]
+    fn test_dec_saturates_at_zero() {
+        let mut c = make_counter(0);
+        c.dec().unwrap();
+        assert_eq!(c.count(), 0);
+    }
+
+    #[test]
+    fn test_inc_near_max_does_not_overflow() {
+        let mut c = make_counter(u128::MAX - 1);
+        c.inc().unwrap();
+        assert_eq!(c.count(), u128::MAX);
     }
 }
