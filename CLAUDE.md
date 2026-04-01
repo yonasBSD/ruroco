@@ -28,6 +28,7 @@ Each binary needs different features: `with-client`, `with-gui`, `with-server`.
 - Max line width: 100 chars. 4-space indent. Config in `rustfmt.toml`.
 - All clippy warnings are errors in CI (`-D warnings`).
 - Logging: use `info()`/`error()` from `src/common/logging.rs` (custom logger, no external crate).
+  `error()` takes an owned value: `error(format!(...))` not `error(&format!(...))`.
 - No unsafe code.
 
 ## Architecture
@@ -81,10 +82,9 @@ with-client   = ["dep:reqwest"]
 - `.github/workflows/rust.yml` — CI pipeline
 - `build.rs` — Slint compilation (only when `with-gui` enabled)
 
-## Hooks
+## After Code Changes
 
-A `PostToolUse` hook in `.claude/settings.json` automatically runs `make format && make test`
-after every `Write`, `Edit`, or `NotebookEdit` tool call.
+After every code change, run `make format && make test` to verify formatting and tests pass.
 
 ## On Compaction
 
