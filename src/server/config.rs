@@ -87,6 +87,10 @@ impl ConfigServer {
             {
                 let fd: RawFd = 3;
                 info(&format!("UdpSocket from_raw_fd {fd} (systemd socket activation)"));
+                // SAFETY: systemd socket activation guarantees that FD 3 is the first
+                // passed socket when LISTEN_FDS=1 and LISTEN_PID matches the current
+                // process (both checked above). Ownership of the fd transfers to the
+                // returned UdpSocket; nothing else in this process will close it.
                 let sock = unsafe { UdpSocket::from_raw_fd(fd) };
                 Ok(sock)
             }
