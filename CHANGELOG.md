@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.1] - 2026-04-05
+
+### Fixed
+
+- Android: fix android_util.rs
+- Docs: fix typos
+
 ## [0.12.0] - 2026-03-31
 
 ### Changed
@@ -511,6 +518,8 @@ Refactored User Interface
 ### Added
 
 - Initial Release
+
+[0.12.1]: https://github.com/beac0n/ruroco/compare/v0.12.0..v0.12.1
 
 [0.12.0]: https://github.com/beac0n/ruroco/compare/v0.11.0..v0.12.0
 
