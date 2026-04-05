@@ -2,6 +2,8 @@
 
 use anyhow::Context;
 use jni::objects::{Global, JObject, JString, JValue, JValueOwned};
+use jni::signature::RuntimeMethodSignature;
+use jni::strings::JNIString;
 use jni::{Env, JavaVM};
 use std::path::PathBuf;
 
@@ -89,7 +91,9 @@ impl AndroidUtil {
         sig: &str,
         args: &[JValue<'_>],
     ) -> anyhow::Result<Global<JObject<'static>>> {
-        let result = env.call_method(obj, name, sig, args);
+        let name = JNIString::new(name);
+        let sig = RuntimeMethodSignature::from_str(sig).context("Failed to parse method signature")?;
+        let result = env.call_method(obj, name, sig.method_signature(), args);
         let obj = Self::unpack_result(result)?;
         env.new_global_ref(&obj).context("Failed to create global ref")
     }
@@ -101,7 +105,10 @@ impl AndroidUtil {
         sig: &str,
         args: &[JValue<'_>],
     ) -> anyhow::Result<Global<JObject<'static>>> {
-        let result = env.call_static_method(class, name, sig, args);
+        let class = JNIString::new(class);
+        let name = JNIString::new(name);
+        let sig = RuntimeMethodSignature::from_str(sig).context("Failed to parse method signature")?;
+        let result = env.call_static_method(class, name, sig.method_signature(), args);
         let obj = Self::unpack_result(result)?;
         env.new_global_ref(&obj).context("Failed to create global ref")
     }
@@ -112,7 +119,9 @@ impl AndroidUtil {
         sig: &str,
         args: &[JValue<'_>],
     ) -> anyhow::Result<Global<JObject<'static>>> {
-        let obj = env.new_object(class, sig, args).context("Failed to create new object")?;
+        let class = JNIString::new(class);
+        let sig = RuntimeMethodSignature::from_str(sig).context("Failed to parse method signature")?;
+        let obj = env.new_object(class, sig.method_signature(), args).context("Failed to create new object")?;
         env.new_global_ref(&obj).context("Failed to create global ref")
     }
 
