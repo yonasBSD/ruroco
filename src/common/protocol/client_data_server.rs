@@ -1,6 +1,6 @@
 use crate::common::protocol::client_data::ClientData;
-use crate::common::protocol::PLAINTEXT_SIZE;
 use crate::common::protocol::serialization_server::deserialize_ip;
+use crate::common::protocol::PLAINTEXT_SIZE;
 use std::net::IpAddr;
 
 impl ClientData {

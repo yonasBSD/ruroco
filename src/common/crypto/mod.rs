@@ -9,7 +9,6 @@ mod handler_client;
 #[cfg(feature = "with-server")]
 mod handler_server;
 
-
 pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
     let mut hasher = Blake2bVar::new(8)
         .with_context(|| format!("Could not create Blake2b hasher for string {s}"))?;

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-03-31
+
+### Changed
+
+- Build: update build make goal
+- Build: add cargo features for building components separately
+- Dependencies: bump (clap, reqwest, openssl, and others)
+
+### Fixed
+
+- Refactor: consolidate cfg guards at module boundaries and eliminate dead code warnings in subset builds
+- Build: fix release_linux target in Makefile and revert binary filenames to match upstream
+- Client: send command to all IP addresses that could be found, not just IPv6
+
+### Added
+
+- Tests: add more unit tests
+- Docs: update README.md with secret-tool usage for key storage
+
 ## [0.11.0] - 2025-12-28
 
 **BREAKING: 0.11.0 is a breaking release. Existing configs are not compatible and must be updated.**
@@ -492,6 +511,8 @@ Refactored User Interface
 ### Added
 
 - Initial Release
+
+[0.12.0]: https://github.com/beac0n/ruroco/compare/v0.11.0..v0.12.0
 
 [0.11.0]: https://github.com/beac0n/ruroco/compare/v0.10.8..v0.11.0
 
