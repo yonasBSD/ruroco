@@ -12,6 +12,11 @@ export component App inherits Window {
     preferred-width: 540px;
 
     TabWidget {
+        x: root.safe-area-insets.left;
+        y: root.safe-area-insets.top;
+        width: root.width - root.safe-area-insets.right - root.safe-area-insets.left;
+        height: root.height - root.safe-area-insets.bottom - root.safe-area-insets.top;
+
         Tab {
             title: "Dashboard";
             Dashboard { }
