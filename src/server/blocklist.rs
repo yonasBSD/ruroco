@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::common::fs::write_atomic_text;
 use crate::common::resolve_path;
 use crate::server::blocklist_serialization::{deserialize, serialize};
 use serde::{Deserialize, Serialize};
@@ -77,9 +78,7 @@ impl Blocklist {
     /// saves the current content of the blocklist to the defined path
     pub(crate) fn save(&self) -> anyhow::Result<()> {
         let toml_string = toml::to_string(&self).with_context(|| "Error serializing blacklist")?;
-
-        fs::write(&self.path, toml_string).with_context(|| "Error persisting blacklist")?;
-
+        write_atomic_text(&self.path, toml_string).with_context(|| "Error persisting blacklist")?;
         Ok(())
     }
 }
