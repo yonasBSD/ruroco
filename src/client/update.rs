@@ -52,7 +52,7 @@ impl Updater {
             Some(p) if !p.exists() || !p.is_dir() => {
                 bail!("{p:?} does not exist or is not a directory");
             }
-            Some(p) if !Self::check_if_writeable(&p)? => {
+            Some(p) if !Self::check_if_writable(&p)? => {
                 bail!("can't write to {p:?}");
             }
             Some(p) => p,
@@ -157,7 +157,7 @@ impl Updater {
         }
     }
 
-    fn check_if_writeable(path: &Path) -> anyhow::Result<bool> {
+    fn check_if_writable(path: &Path) -> anyhow::Result<bool> {
         Ok(NamedTempFile::new_in(path).is_ok())
     }
 
@@ -168,7 +168,7 @@ impl Updater {
                 Ok(p)
             }
             p if !p.is_dir() => Err(anyhow!("{p:?} exists but is not a directory")),
-            p if !Self::check_if_writeable(&p)? => Err(anyhow!("can't write to {p:?}")),
+            p if !Self::check_if_writable(&p)? => Err(anyhow!("can't write to {p:?}")),
             p => Ok(p),
         }
     }
@@ -335,14 +335,14 @@ mod tests {
     #[test]
     fn test_check_if_writable() {
         let dir = tempfile::tempdir().unwrap();
-        assert!(Updater::check_if_writeable(dir.path()).unwrap());
+        assert!(Updater::check_if_writable(dir.path()).unwrap());
     }
 
     #[test]
     fn test_check_if_writable_readonly() {
         let dir = tempfile::tempdir().unwrap();
         let readonly_dir = create_readonly_dir(dir.path());
-        assert!(!Updater::check_if_writeable(&readonly_dir).unwrap());
+        assert!(!Updater::check_if_writable(&readonly_dir).unwrap());
         let _ = fs::set_permissions(&readonly_dir, fs::Permissions::from_mode(0o755));
     }
 
