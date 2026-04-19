@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub struct Counter {
     path: PathBuf,
     count: u128,

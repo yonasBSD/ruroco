@@ -15,7 +15,7 @@ use std::time::SystemTime;
 pub struct Sender {
     cmd: SendCommand,
     data_parser: DataParser,
-    counter: u128,
+    counter: Counter,
 }
 
 impl Sender {
@@ -29,12 +29,10 @@ impl Sender {
             .duration_since(SystemTime::UNIX_EPOCH)
             .with_context(|| format!("Could not get duration since {:?}", SystemTime::UNIX_EPOCH))?
             .as_nanos();
-        let mut counter = Counter::create_and_init(counter_path, initial_counter)?;
-        counter.inc()?;
         Ok(Self {
             data_parser: DataParser::create(&cmd.key)?,
             cmd,
-            counter: counter.count(),
+            counter: Counter::create_and_init(counter_path, initial_counter)?,
         })
     }
 
@@ -43,7 +41,7 @@ impl Sender {
     }
 
     /// Send data to the server to execute a predefined command
-    pub fn send(&self) -> anyhow::Result<()> {
+    pub fn send(&mut self) -> anyhow::Result<()> {
         info(&format!("Connecting to udp://{}, using {} ...", &self.cmd.address, version(),));
         let destination_ips_validated = self.get_destination_ips()?;
         info(&format!("Found IPs {destination_ips_validated:?} for {}", &self.cmd.address));
@@ -90,7 +88,8 @@ impl Sender {
         })
     }
 
-    fn send_data(&self, ip: IpAddr) -> anyhow::Result<()> {
+    fn send_data(&mut self, ip: IpAddr) -> anyhow::Result<()> {
+        self.counter.inc()?;
         let bind_address = if ip.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" };
 
         info(&format!("Connecting to {ip}..."));
@@ -117,7 +116,7 @@ impl Sender {
             !self.cmd.permissive,
             self.cmd.ip.clone().and_then(|d| d.parse().ok()),
             destination_ip,
-            self.counter,
+            self.counter.count(),
         )?
         .serialize()
     }
@@ -191,7 +190,7 @@ mod tests {
         let _conf_dir = set_test_conf_dir();
         let key = Generator::create().unwrap().gen().unwrap();
         let address = "127.0.0.1:asd".to_string();
-        let sender = Sender::create(SendCommand {
+        let mut sender = Sender::create(SendCommand {
             address: address.clone(),
             key,
             ip: Some(IP.to_string()),
@@ -211,7 +210,7 @@ mod tests {
     fn test_send_unknown_service() {
         let _conf_dir = set_test_conf_dir();
         let address = "999.999.999.999:9999".to_string();
-        let sender = Sender::create(SendCommand {
+        let mut sender = Sender::create(SendCommand {
             address: address.clone(),
             key: Generator::create().unwrap().gen().unwrap(),
             ip: Some(IP.to_string()),
@@ -229,7 +228,7 @@ mod tests {
     #[test]
     fn test_send_huge_command() {
         let _conf_dir = set_test_conf_dir();
-        let sender = Sender::create(SendCommand {
+        let mut sender = Sender::create(SendCommand {
             address: "[::ffff:127.0.0.1]:1234".to_string(),
             key: Generator::create().unwrap().gen().unwrap(),
             command: "#".repeat(6000),
