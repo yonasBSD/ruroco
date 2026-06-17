@@ -10,7 +10,12 @@ use crate::common::protocol::KEY_ID_SIZE;
 use crate::common::resolve_path;
 use serde::{Deserialize, Serialize};
 
-/// contains a list of blocked deadlines and a path to where the blocklist is persisted
+/// contains a list of blocked deadlines and a path to where the blocklist is persisted.
+///
+/// Stability: the on-disk format is msgpack of this struct, so any incompatible schema change
+/// makes `rmp_serde::from_slice` fail (surfaced as "Could not create blocklist from vec"), i.e.
+/// it already fails closed without an explicit version marker. This is local server state, not a
+/// cross-version wire contract, so no version field is carried.
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct Blocklist {
     map: HashMap<[u8; KEY_ID_SIZE], u128>,
@@ -69,12 +74,10 @@ impl Blocklist {
         &self.map
     }
 
-    /// adds a new entry to the blocklist
     pub(crate) fn add(&mut self, key_id: [u8; KEY_ID_SIZE], entry: u128) {
         self.map.insert(key_id, entry);
     }
 
-    /// saves the current content of the blocklist to the defined path
     pub(crate) fn save(&self) -> anyhow::Result<()> {
         let vec = rmp_serde::to_vec(&self).with_context(|| "Error serializing blacklist")?;
         write_atomic(&self.path, vec.as_slice()).with_context(|| "Error persisting blacklist")?;

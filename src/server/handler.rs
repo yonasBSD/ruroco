@@ -7,6 +7,7 @@ use anyhow::{anyhow, Context};
 use std::io::Write;
 use std::net::IpAddr;
 use std::os::unix::net::UnixStream;
+use std::time::Duration;
 
 impl Server {
     pub(super) fn validate_and_send_command(
@@ -18,7 +19,7 @@ impl Server {
         let max_future_counter = now_nanos()?
             .saturating_add(u128::from(self.config.max_clock_skew_seconds) * 1_000_000_000);
 
-        match ClientData::deserialize(plaintext_data) {
+        match ClientData::deserialize(plaintext_data)? {
             client_data if self.blocklist.is_counter_replayed(key_id, client_data.counter) => {
                 let server_counter = self.blocklist.get_counter(key_id);
                 Err(anyhow!(
@@ -49,7 +50,9 @@ impl Server {
                 let client_counter = client_data.counter;
                 let ip = client_data.src_ip.unwrap_or(src_ip);
                 info(format!("Valid data for key {key_id:X?} - trying cmd {cmd} and counter {client_counter}|{server_counter:?} with {ip}"));
-                self.update_block_list(key_id, client_data.counter);
+                // Persist the advanced counter before executing: if the blocklist can't be saved we
+                // must not run the command, otherwise a replay could re-trigger it after a restart.
+                self.update_block_list(key_id, client_data.counter)?;
                 self.send_command(CommanderData { cmd_hash: cmd, ip });
                 Ok(())
             }
@@ -60,11 +63,9 @@ impl Server {
         &mut self,
         key_id: [u8; crate::common::protocol::KEY_ID_SIZE],
         counter: u128,
-    ) {
+    ) -> anyhow::Result<()> {
         self.blocklist.add(key_id, counter);
-        if let Err(e) = self.blocklist.save() {
-            error(format!("Could not update block list: {e}"))
-        }
+        self.blocklist.save().with_context(|| "Could not update block list")
     }
 
     pub(super) fn send_command(&self, data: CommanderData) {
@@ -80,6 +81,11 @@ impl Server {
     pub(super) fn write_to_socket(&self, data: CommanderData) -> anyhow::Result<()> {
         let mut stream = UnixStream::connect(&self.socket_path)
             .with_context(|| format!("Could not connect to socket {:?}", self.socket_path))?;
+        // Bound the write so a hung commander can't stall the server's single-threaded loop. The
+        // payload is tiny (24 bytes), so a second is generous for a healthy commander.
+        stream
+            .set_write_timeout(Some(Duration::from_secs(1)))
+            .with_context(|| format!("Could not set write timeout for {:?}", self.socket_path))?;
 
         let data_to_send: [u8; crate::common::ipc::CMDR_DATA_SIZE] = data.into();
         stream.write_all(&data_to_send).with_context(|| {
