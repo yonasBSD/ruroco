@@ -45,15 +45,6 @@ pub(crate) fn blake2b_u64(s: &str) -> anyhow::Result<u64> {
     Ok(u64::from_be_bytes(out))
 }
 
-#[cfg(any(feature = "with-client", feature = "with-server"))]
-pub fn get_random_range(from: u16, to: u16) -> anyhow::Result<u16> {
-    use openssl::rand::rand_bytes;
-    let mut buf = [0u8; 4];
-    rand_bytes(&mut buf).with_context(|| "Could not generate number")?;
-    let span = (to - from) as u32;
-    Ok(from + (u32::from_be_bytes(buf) % span) as u16)
-}
-
 #[cfg(feature = "with-client")]
 #[cfg(test)]
 mod ed25519_tests {
