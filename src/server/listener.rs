@@ -98,7 +98,11 @@ impl Server {
     }
 
     fn check_rate_limit(&mut self, src_ip: IpAddr) -> anyhow::Result<()> {
-        self.rate_limiter.check(src_ip, self.config.max_requests_per_second)
+        self.rate_limiter.check(
+            src_ip,
+            self.config.max_requests_per_second,
+            self.config.max_requests_per_second_global,
+        )
     }
 
     fn decrypt(&mut self) -> anyhow::Result<([u8; KEY_ID_SIZE], [u8; PLAINTEXT_SIZE])> {
@@ -152,7 +156,7 @@ mod tests {
         env::remove_var("RUROCO_LISTEN_ADDRESS");
         let socket = ConfigServer::default().create_server_udp_socket(None).unwrap();
         let result = socket.local_addr().unwrap();
-        assert_eq!(result.port(), crate::server::socket::DEFAULT_PORT);
+        assert_eq!(result.port(), crate::server::socket::FALLBACK_BIND_PORT);
     }
 
     #[test]
@@ -526,6 +530,33 @@ mod tests {
             cmd_hash: 42,
             ip: "127.0.0.1".parse().unwrap(),
         });
+    }
+
+    #[test]
+    fn test_update_block_list_rolls_back_on_save_failure() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dir = temp_dir.path().to_path_buf();
+        fs::write(dir.join("test.key"), Generator::create().unwrap().gen().unwrap()).unwrap();
+        let mut server = Server::create(
+            ConfigServer {
+                config_dir: dir.clone(),
+                ..Default::default()
+            },
+            Some(format!("127.0.0.1:{}", get_random_range(1024, 65535).unwrap())),
+        )
+        .unwrap();
+
+        let key_id = *server.blocklist.get().keys().next().unwrap();
+        let original = *server.blocklist.get_counter(key_id).unwrap();
+
+        // Remove the blocklist directory so the atomic save fails with ENOENT for everyone,
+        // including root - making the assertions deterministic regardless of the test's UID.
+        fs::remove_dir_all(&dir).unwrap();
+        let result = server.update_block_list(key_id, original + 1);
+
+        assert!(result.is_err(), "save into a missing dir should fail");
+        // The in-memory advance must have been rolled back to the original counter.
+        assert_eq!(*server.blocklist.get_counter(key_id).unwrap(), original);
     }
 
     #[test]
